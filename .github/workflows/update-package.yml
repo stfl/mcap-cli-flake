@@ -1,0 +1,63 @@
+name: Update mcap-cli
+
+# Bumps the packaged upstream release: version, source hash, cargoHash.
+# Separate from update-lock.yml so a red run is unambiguous — a break here is an
+# upstream release this packaging has to catch up with, and it is ours to fix.
+#
+# The bump is verified before it is pushed: a push made with GITHUB_TOKEN does not
+# trigger `on: push` workflows, so this job runs the same build and smoke test CI
+# would, and a bump that does not produce a working binary never lands.
+on:
+  schedule:
+    - cron: "0 6 * * *" # Daily at 06:00 UTC
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
+
+    steps:
+      - uses: actions/checkout@v6
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+
+      - name: Bump version and hashes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          nix run --inputs-from . nixpkgs#nix-update -- \
+            --flake \
+            --commit \
+            --version-regex 'releases/mcap-cli/v(.*)' \
+            mcap-cli
+
+      - name: Did anything change?
+        id: changed
+        run: |
+          if git diff --quiet HEAD origin/main -- package.nix; then
+            echo "Already on the latest release."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build
+        if: steps.changed.outputs.changed == 'true'
+        run: nix build .#mcap-cli -L
+
+      - name: Smoke test
+        if: steps.changed.outputs.changed == 'true'
+        run: ci/smoke-test.sh
+
+      - name: Push
+        if: steps.changed.outputs.changed == 'true'
+        run: git push
+
+      - name: Trigger FlakeHub publish
+        if: steps.changed.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run flakehub-publish.yml --repo "$GITHUB_REPOSITORY"

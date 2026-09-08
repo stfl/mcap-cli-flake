@@ -1,0 +1,61 @@
+name: Update flake.lock
+
+# Bumps the pinned nixpkgs. Separate from update-package.yml so a red run is
+# unambiguous — a break here is usually rustc or dependency churn in nixpkgs that
+# resolves itself on a later nixpkgs, not a problem with the packaging.
+#
+# Verified before pushing for the same reason as update-package.yml: a push made
+# with GITHUB_TOKEN does not trigger `on: push` workflows.
+on:
+  schedule:
+    - cron: "0 7 * * 1" # Mondays at 07:00 UTC
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
+
+    steps:
+      - uses: actions/checkout@v6
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+
+      - name: Update flake.lock
+        run: nix flake update
+
+      - name: Did anything change?
+        id: changed
+        run: |
+          if git diff --quiet flake.lock; then
+            echo "nixpkgs is already current."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build
+        if: steps.changed.outputs.changed == 'true'
+        run: nix build .#mcap-cli -L
+
+      - name: Smoke test
+        if: steps.changed.outputs.changed == 'true'
+        run: ci/smoke-test.sh
+
+      - name: Commit and push
+        if: steps.changed.outputs.changed == 'true'
+        run: |
+          NIXPKGS_REV=$(nix flake metadata --json | nix run --inputs-from . nixpkgs#jq -- -r '.locks.nodes.nixpkgs.locked.rev')
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add flake.lock
+          git commit -m "flake.lock: update nixpkgs to ${NIXPKGS_REV}"
+          git push
+
+      - name: Trigger FlakeHub publish
+        if: steps.changed.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run flakehub-publish.yml --repo "$GITHUB_REPOSITORY"

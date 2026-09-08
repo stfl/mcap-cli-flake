@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# x86_64-linux only. This is a smoke gate; ofborg is the multi-arch gate when the
+# package is proposed to nixpkgs, and meta.platforms deliberately claims more than
+# this CI proves.
+jobs:
+  flake-check:
+    name: nix flake check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+      - run: nix flake check --no-build --all-systems
+
+  build:
+    name: Build and smoke-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+
+      - name: Build
+        run: nix build .#mcap-cli -L
+
+      - name: Smoke test
+        run: ci/smoke-test.sh
+
+  overlay:
+    name: Overlay applies to nixpkgs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+
+      - name: Overlay replaces nixpkgs mcap-cli with this version
+        run: |
+          expected=$(sed -n 's/^[[:space:]]*version = "\(.*\)";$/\1/p' package.nix | head -1)
+          overlaid=$(nix eval --raw --impure --expr '
+            let
+              flake = builtins.getFlake (toString ./.);
+              pkgs = import flake.inputs.nixpkgs {
+                system = "x86_64-linux";
+                overlays = [ flake.overlays.default ];
+              };
+            in
+            pkgs.mcap-cli.version
+          ')
+          echo "package.nix: $expected  through overlay: $overlaid"
+          [ "$expected" = "$overlaid" ] || {
+            echo "FAIL: overlay yields $overlaid, package.nix declares $expected" >&2
+            exit 1
+          }
+          echo "OK: overlay applies"
