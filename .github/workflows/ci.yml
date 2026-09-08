@@ -43,7 +43,7 @@ jobs:
 
       - name: Overlay replaces nixpkgs mcap-cli with this version
         run: |
-          expected=$(sed -n 's/^[[:space:]]*version = "\(.*\)";$/\1/p' package.nix | head -1)
+          expected=$(nix eval --raw .#mcap-cli.version)
           overlaid=$(nix eval --raw --impure --expr '
             let
               flake = builtins.getFlake (toString ./.);
@@ -54,9 +54,9 @@ jobs:
             in
             pkgs.mcap-cli.version
           ')
-          echo "package.nix: $expected  through overlay: $overlaid"
+          echo "flake output: $expected  through overlay: $overlaid"
           [ "$expected" = "$overlaid" ] || {
-            echo "FAIL: overlay yields $overlaid, package.nix declares $expected" >&2
+            echo "FAIL: overlay yields $overlaid, flake output is $expected" >&2
             exit 1
           }
           echo "OK: overlay applies"

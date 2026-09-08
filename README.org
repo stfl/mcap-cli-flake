@@ -6,7 +6,8 @@ implementation.
 
 nixpkgs carries ~mcap-cli~ at 0.0.62, the Go implementation that preceded the
 rewrite. This flake stands in for it until the rewrite lands upstream; the
-package expression here is written to be adopted into nixpkgs unchanged.
+package expression here is written to be adopted into nixpkgs with the two edits
+noted below and nothing more.
 
 * Use it
 
@@ -54,7 +55,7 @@ FlakeHub's cache instead and carry a second nixpkgs.
 
 ~package.nix~ takes nothing a nixpkgs tree would not already provide, so
 upstreaming it is a copy into ~pkgs/by-name/mc/mcap-cli/~ rather than a rewrite.
-Two things about it are worth knowing before that copy:
+Two edits belong in that copy:
 
 - The ~maintainers~ list carries a literal attribute set for ~stfl~, who has no
   entry in ~maintainers/maintainer-list.nix~. Upstreaming adds the entry there

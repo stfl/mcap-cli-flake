@@ -24,6 +24,9 @@ jobs:
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
 
+      # --version-regex must stay in step with package.nix's passthru.updateScript,
+      # which declares the same regex for the nixpkgs update machinery. nix-update
+      # invoked directly does not read passthru, so both carry it.
       - name: Bump version and hashes
         run: |
           git config user.name "github-actions[bot]"

@@ -15,7 +15,7 @@ rustPlatform.buildRustPackage (finalAttrs: {
   src = fetchFromGitHub {
     owner = "foxglove";
     repo = "mcap";
-    rev = "releases/mcap-cli/v${finalAttrs.version}";
+    tag = "releases/mcap-cli/v${finalAttrs.version}";
     hash = "sha256-QVJA/RZPamkBYkFNJn9uB1/cok6lEF/U7ssmdmzp4og=";
   };
 
