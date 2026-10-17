@@ -10,16 +10,16 @@
 
 rustPlatform.buildRustPackage (finalAttrs: {
   pname = "mcap-cli";
-  version = "0.3.0";
+  version = "0.4.0";
 
   src = fetchFromGitHub {
     owner = "foxglove";
     repo = "mcap";
     tag = "releases/mcap-cli/v${finalAttrs.version}";
-    hash = "sha256-QVJA/RZPamkBYkFNJn9uB1/cok6lEF/U7ssmdmzp4og=";
+    hash = "sha256-JHQwbrLkzlBO78cHcUJ/LcnF0lOAcn9JWPIWrkHKnQk=";
   };
 
-  cargoHash = "sha256-7WsGJd+KNNCke9pmvwN6zi0bDXBGfQcEotIxyYdUWAo=";
+  cargoHash = "sha256-Iun3xsMWrFb/xa1NXceOej0l9ErM+LxxoJRQfRkxsCA=";
 
   # The repository root is a Cargo workspace of the `mcap` library and this CLI;
   # build and test only the CLI member.
