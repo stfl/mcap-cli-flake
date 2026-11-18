@@ -6,6 +6,9 @@
   fetchFromGitHub,
   installShellFiles,
   nix-update-script,
+  pkg-config,
+  sqlite,
+  zstd,
 }:
 
 rustPlatform.buildRustPackage (finalAttrs: {
@@ -42,7 +45,15 @@ rustPlatform.buildRustPackage (finalAttrs: {
     "--skip=commands::convert::tests::convert_command_handles_noetic_generated_ros1_bags"
   ];
 
-  nativeBuildInputs = [ installShellFiles ];
+  nativeBuildInputs = [
+    installShellFiles
+    pkg-config
+  ];
+
+  buildInputs = [
+    sqlite
+    zstd
+  ];
 
   # Completions come out of the built binary, so a cross build needs an emulator to
   # run it. Guarding on emulatorAvailable rather than canExecute keeps all three
