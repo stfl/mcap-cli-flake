@@ -12,11 +12,11 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
-      - uses: DeterminateSystems/determinate-nix-action@v3
-      - uses: DeterminateSystems/flakehub-push@main
+      - uses: DeterminateSystems/determinate-nix-action@16f94ba7aae399b9f9077c254b6719ec6de7e3e3 # v3
+      - uses: DeterminateSystems/flakehub-push@2769db2f8d26fe4fa21b37428901bc2b6a54e012 # main
         with:
           visibility: public
           name: stfl/mcap-cli
