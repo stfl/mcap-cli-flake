@@ -1,11 +1,12 @@
-name: Update flake.lock
+name: Update nixpkgs and mcap-cli
 
-# Bumps the pinned nixpkgs. Separate from update-package.yml so a red run is
-# unambiguous — a break here is usually rustc or dependency churn in nixpkgs that
-# resolves itself on a later nixpkgs, not a problem with the packaging.
-#
-# Verified before pushing for the same reason as update-package.yml: a push made
+# Weekly: bump the pinned nixpkgs, then bump the packaged mcap-cli release when
+# upstream has tagged a newer one. Verified before pushing, because a push made
 # with GITHUB_TOKEN does not trigger `on: push` workflows.
+#
+# The release is resolved from the tag list, not from nix-update's own lookup:
+# foxglove/mcap releases many components, and its releases.atom feed holds too few
+# entries to still contain the last mcap-cli release.
 on:
   schedule:
     - cron: "0 7 * * 1" # Mondays at 07:00 UTC
@@ -17,19 +18,40 @@ jobs:
     permissions:
       contents: write
       actions: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
       - uses: actions/checkout@v6
       - uses: DeterminateSystems/nix-installer-action@main
 
+      - name: Record starting commit
+        run: echo "START_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
       - name: Update flake.lock
-        run: nix flake update
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          nix flake update
+          if ! git diff --quiet flake.lock; then
+            NIXPKGS_REV=$(nix flake metadata --json | nix run --inputs-from . nixpkgs#jq -- -r '.locks.nodes.nixpkgs.locked.rev')
+            git add flake.lock
+            git commit -m "flake.lock: update nixpkgs to ${NIXPKGS_REV}"
+          fi
+
+      - name: Bump mcap-cli to the latest release
+        run: |
+          version=$(gh api "repos/foxglove/mcap/git/matching-refs/tags/releases/mcap-cli/v" \
+            --paginate --jq '.[].ref' | sed 's|.*/v||' | sort -V | tail -1)
+          [ -n "$version" ] || { echo "no mcap-cli release tags found" >&2; exit 1; }
+          nix run --inputs-from . nixpkgs#nix-update -- \
+            --flake --commit --version "$version" mcap-cli
 
       - name: Did anything change?
         id: changed
         run: |
-          if git diff --quiet flake.lock; then
-            echo "nixpkgs is already current."
+          if [ "$(git rev-parse HEAD)" = "$START_SHA" ]; then
+            echo "Nothing to update."
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
@@ -43,18 +65,10 @@ jobs:
         if: steps.changed.outputs.changed == 'true'
         run: ci/smoke-test.sh
 
-      - name: Commit and push
+      - name: Push
         if: steps.changed.outputs.changed == 'true'
-        run: |
-          NIXPKGS_REV=$(nix flake metadata --json | nix run --inputs-from . nixpkgs#jq -- -r '.locks.nodes.nixpkgs.locked.rev')
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add flake.lock
-          git commit -m "flake.lock: update nixpkgs to ${NIXPKGS_REV}"
-          git push
+        run: git push
 
       - name: Trigger FlakeHub publish
         if: steps.changed.outputs.changed == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh workflow run flakehub-publish.yml --repo "$GITHUB_REPOSITORY"
