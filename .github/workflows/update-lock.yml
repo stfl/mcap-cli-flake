@@ -4,8 +4,8 @@ name: Update nixpkgs and mcap-cli
 # upstream has tagged a newer one. Verified before pushing, because a push made
 # with GITHUB_TOKEN does not trigger `on: push` workflows.
 #
-# --version-regex must stay in step with package.nix's passthru.updateScript, which
-# declares the same regex for the nixpkgs update machinery; nix-update invoked
+# --use-github-releases and --version-regex must stay in step with package.nix's passthru.updateScript, which
+# declares the same arguments for the nixpkgs update machinery; nix-update invoked
 # directly does not read passthru, so both carry it.
 on:
   schedule:

@@ -72,6 +72,7 @@ rustPlatform.buildRustPackage (finalAttrs: {
 
   passthru.updateScript = nix-update-script {
     extraArgs = [
+      "--use-github-releases"
       "--version-regex"
       "releases/mcap-cli/v(.*)"
     ];
