@@ -39,8 +39,11 @@ jobs:
             git commit -m "flake.lock: update nixpkgs to ${NIXPKGS_REV}"
           fi
 
+      # nix-update evaluates the flake through nix-instantiate, which cannot open
+      # inputs that lazy-trees leaves virtual; archiving puts them in the store.
       - name: Bump mcap-cli to the latest release
         run: |
+          nix flake archive
           version=$(gh api "repos/foxglove/mcap/git/matching-refs/tags/releases/mcap-cli/v" \
             --paginate --jq '.[].ref' | sed 's|.*/v||' | sort -V | tail -1)
           [ -n "$version" ] || { echo "no mcap-cli release tags found" >&2; exit 1; }
